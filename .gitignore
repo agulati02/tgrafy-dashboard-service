@@ -2,3 +2,4 @@
 .vscode
 
 *.sh
+__pycache__
