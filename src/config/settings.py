@@ -23,3 +23,5 @@ if ENV.lower() == "local":
     CLIENT_SECRET = read_file_content(CLIENT_SECRET_PATH)
 
 REDIRECT_URI = os.getenv("GITHUB_OAUTH_REDIRECT_URI")
+AWS_REGION_NAME = os.getenv("AWS_REGION_NAME", "ap-southeast-2")
+SECRET_GITHUB_OAUTH = os.getenv("SECRET_GITHUB_OAUTH", "")
