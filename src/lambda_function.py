@@ -1,5 +1,6 @@
 import httpx
 import json
+import logging
 from typing import Dict, Any
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from commons.utils.dependencies import get_secrets_manager  # type: ignore
@@ -9,6 +10,8 @@ from .config.settings import CLIENT_ID, REDIRECT_URI, AWS_REGION_NAME, SECRET_GI
 
 
 router = Router()
+logger = logging.getLogger(__file__)
+logger.setLevel(logging.INFO)
 
 @router.route("GET", f"{AUTH_ROUTER_PREFIX}/oauth/github")
 def github_oauth(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
@@ -55,6 +58,8 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
                 "Accept": "application/json"
             }
         ).json()
+
+        logger.info(user_data)
 
         return {
             "statusCode": 200,
