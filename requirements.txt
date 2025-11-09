@@ -1,4 +1,4 @@
 httpx
 python-dotenv
 aws-lambda-powertools
-tgrafy-commons @ https://test-files.pythonhosted.org/packages/cb/5b/b6785b69261d1bf683698831658f2338f3dacbbc2f5ba87531df9707f175/tgrafy_commons-0.3.0.tar.gz#sha256=1f14f8c4379fdf32a2dafe592d45f1f054cbcb045d1a16d4c0f35d0d82eae7fb
+tgrafy-commons @ https://test-files.pythonhosted.org/packages/81/4d/858c703a72f89a081ed6f1514b80ffcdb364e3c64da05fe167ad21d7dce5/tgrafy_commons-0.3.2.tar.gz#sha256=68f6269b992dc590ecf6769eb7380d20f713904b96885a03e4b035e3ac41e509

@@ -44,6 +44,8 @@ def github_oauth(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any
 @router.route("GET", f"{AUTH_ROUTER_PREFIX}/oauth/github/callback")
 def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     code = event.get("queryStringParameters", {}).get("code", "")
+
+    # 0. Get secrets
     github_client_secret, database_username, database_password = tuple(
         get_secrets_manager(AWS_REGION_NAME).get_secrets([  # type: ignore
             SECRET_GITHUB_OAUTH, SECRET_DATABASE_USERNAME_PATH, SECRET_DATABASE_PASSWORD_PATH
@@ -56,6 +58,8 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
             username=database_username,
             password=database_password
         ) as db_client:
+
+        # 1. Exchange authorization code for access token
         logger.info("Fetching access token")
         start = time.time()
         token_response = http_client.post(
@@ -84,6 +88,7 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
         token_data: Dict[str, Any] = token_response.json()
         access_token = token_data.get("access_token")
 
+        # 2. Fetch user information
         logger.info("Fetching user data")
         start = time.time()
         user_response = http_client.get(
@@ -109,15 +114,18 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
             
         user_data: Dict[str, Any] = user_response.json()
 
+        # 3. Save user information in DB
         logger.info("Saving user details to DB")
         start = time.time()
-        db_client.save(
+        db_client.update(
             collection=USERS_COLLECTION,
-            data={
+            filter={"login": user_data["login"]},
+            diff={
                 **user_data,
                 "access_token": access_token,
                 "login_ts": datetime.now(tz=timezone.utc)
-            }
+            },
+            upsert=True
         )
         logger.info("User save call took %f sec", time.time() - start)
 
