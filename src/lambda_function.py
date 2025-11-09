@@ -1,6 +1,8 @@
 import httpx
 import json
+import time
 import logging
+from httpx import HTTPStatusError
 from typing import Dict, Any
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from commons.utils.dependencies import get_secrets_manager  # type: ignore
@@ -32,6 +34,8 @@ def github_oauth(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any
 def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     code = event.get("queryStringParameters", {}).get("code", "")
     with httpx.Client() as client:
+        logger.info("Fetching access token")
+        start = time.time()
         token_response = client.post(
             url="https://github.com/login/oauth/access_token",
             headers={"Accept": "application/json"},
@@ -42,25 +46,40 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
                 "redirect_uri": REDIRECT_URI,
             }
         )
-        token_data: Dict[str, Any] = token_response.json()
-
-        if "error" in token_data:
+        logger.info("Access token call took: %f sec", time.time() - start)
+        try:
+            token_response.raise_for_status()
+        except HTTPStatusError as err:
+            logger.error("Error fetching access token: %s", str(err))
             return {
                 "statusCode": 400,
-                "body": json.dumps(token_data.get("error", {}))
+                "body": str(err)
             }
         
+        token_data: Dict[str, Any] = token_response.json()
         access_token = token_data.get("access_token")
-        user_data = client.get(
+
+        logger.info("Fetching user data")
+        start = time.time()
+        user_response = client.get(
             url="https://api.github.com/user",
             headers={
                 "Authorization": f"Bearer {access_token}",
                 "Accept": "application/json"
             }
-        ).json()
-
-        logger.info(user_data)
-
+        )
+        logger.info("User data call took: %f sec", time.time() - start)
+        
+        try:
+            user_response.raise_for_status()
+        except HTTPStatusError as err:
+            logger.error("Error fetching user data: %s", str(err))
+            return {
+                "statusCode": 500,
+                "body": str(err)
+            }
+            
+        user_data = user_response.json()
         return {
             "statusCode": 200,
             "body": json.dumps(user_data)
