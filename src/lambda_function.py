@@ -108,6 +108,9 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
             }
             
         user_data: Dict[str, Any] = user_response.json()
+
+        logger.info("Saving user details to DB")
+        start = time.time()
         db_client.save(
             collection=USERS_COLLECTION,
             data={
@@ -116,6 +119,7 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
                 "login_ts": datetime.now(tz=timezone.utc)
             }
         )
+        logger.info("User save call took %f sec", time.time() - start)
 
         return {
             "statusCode": 200,
