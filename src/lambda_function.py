@@ -157,7 +157,7 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
         return {
             "statusCode": 302,
             "headers": {
-                "Location": "https://tgrafy.agulati.cc/dashboard",
+                "Location": f"https://tgrafy.agulati.cc/dashboard?login={user_data['login']}",
                 "Set-Cookie": (
                     f"tg_access_token={jwt_token}; "
                     f"Domain=.agulati.cc; HttpOnly; "
