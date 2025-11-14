@@ -133,10 +133,7 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
             "statusCode": 302,
             "headers": {
                 "Location": "https://tgrafy.agulati.cc/dashboard"
-            },
-            "body": json.dumps({
-                "login_status": "OK"
-            })
+            }
         }
 
 def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
