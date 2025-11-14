@@ -160,7 +160,7 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
                 "Location": "https://tgrafy.agulati.cc/dashboard",
                 "Set-Cookie": (
                     f"tg_access_token={jwt_token}; "
-                    f"HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age={token_expiry_minutes * 60}"
+                    f"Secure; SameSite=Lax; Path=/; Max-Age={token_expiry_minutes * 60}"
                 )
             }
         }
