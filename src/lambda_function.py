@@ -130,7 +130,10 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
         logger.info("User save call took %f sec", time.time() - start)
 
         return {
-            "statusCode": 200,
+            "statusCode": 302,
+            "headers": {
+                "Location": "https://tgrafy.agulati.cc/dashboard"
+            },
             "body": json.dumps({
                 "login_status": "OK"
             })
