@@ -7,6 +7,7 @@ from httpx import HTTPStatusError
 from typing import Dict, Any
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from commons.utils.dependencies import get_secrets_manager, get_database_service  # type: ignore
+from commons.utils.token_manager import TokenManager  # type: ignore
 from .utils.router import Router
 from .config.constants import AUTH_ROUTER_PREFIX
 from .config.settings import (
@@ -16,6 +17,7 @@ from .config.settings import (
     SECRET_GITHUB_OAUTH, 
     SECRET_DATABASE_USERNAME_PATH, 
     SECRET_DATABASE_PASSWORD_PATH,
+    SECRET_JWT_PRIVATE_KEY_PATH,
     DATABASE_CONNECTION_STRING,
     DATABASE_NAME,
     USERS_COLLECTION
@@ -44,13 +46,26 @@ def github_oauth(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any
 @router.route("GET", f"{AUTH_ROUTER_PREFIX}/oauth/github/callback")
 def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     code = event.get("queryStringParameters", {}).get("code", "")
+    secrets_manager = get_secrets_manager(AWS_REGION_NAME)
 
     # 0. Get secrets
-    github_client_secret, database_username, database_password = tuple(
-        get_secrets_manager(AWS_REGION_NAME).get_secrets([  # type: ignore
-            SECRET_GITHUB_OAUTH, SECRET_DATABASE_USERNAME_PATH, SECRET_DATABASE_PASSWORD_PATH
+    app_secrets = tuple(
+        secrets_manager.get_secrets([  # type: ignore
+            SECRET_GITHUB_OAUTH, SECRET_DATABASE_USERNAME_PATH, 
+            SECRET_DATABASE_PASSWORD_PATH, SECRET_JWT_PRIVATE_KEY_PATH
         ])
     )
+
+    if None in app_secrets:
+        logger.error("One or more required secrets are missing")
+        return {
+            "statusCode": 500,
+            "body": json.dumps({
+                "login_status": "FAILED",
+                "error": "Internal server error"
+            })
+        }
+    github_client_secret, database_username, database_password, jwt_key = app_secrets
     with httpx.Client() as http_client, \
         get_database_service(
             conn_string=DATABASE_CONNECTION_STRING,
@@ -129,10 +144,24 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
         )
         logger.info("User save call took %f sec", time.time() - start)
 
+        # 4. Generate JWT token
+        logger.info("Generating JWT token")
+        token_expiry_minutes = 10
+        jwt_token = TokenManager(secrets_manager).get_jwt_token(
+            private_key=jwt_key,    # type: ignore
+            iss="tgrafy",
+            algo="HS256",
+            exp=token_expiry_minutes
+        )
+
         return {
             "statusCode": 302,
             "headers": {
-                "Location": "https://tgrafy.agulati.cc/dashboard"
+                "Location": "https://tgrafy.agulati.cc/dashboard",
+                "Set-Cookie": (
+                    f"tg_access_token={jwt_token}; "
+                    f"HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age={token_expiry_minutes * 60}"
+                )
             }
         }
 
