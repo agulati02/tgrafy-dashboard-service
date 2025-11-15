@@ -2,6 +2,7 @@
 --extra-index-url https://test.pypi.org/simple
 
 httpx
+pydantic
 python-dotenv
 aws-lambda-powertools
 tgrafy-commons==0.3.4
