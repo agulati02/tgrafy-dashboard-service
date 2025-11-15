@@ -83,6 +83,11 @@ def get_user_profile(event: Dict[str, Any], context: LambdaContext) -> Dict[str,
         user_profile = handler.get_profile(user_id=user_id)
         return {
             "statusCode": 200,
+            "headers": {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Credentials': True,
+                'Content-Type': 'application/json'
+            },
             "body": json.dumps(user_profile)
         }
     except Exception as err:
