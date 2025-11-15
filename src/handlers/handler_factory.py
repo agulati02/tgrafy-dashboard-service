@@ -4,9 +4,10 @@ import httpx
 from typing import Dict, Any
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
-from commons.utils.dependencies import get_secrets_manager, get_database_service  # type: ignore
-from commons.interfaces import SecretsManagerInterface, DatabaseServiceInterface  # type: ignore
+from commons.utils.dependencies import get_database_service  # type: ignore
+from commons.interfaces import DatabaseServiceInterface  # type: ignore
 from .auth_handler import GithubAuthHandler
+from .user_handler import UserHandler
 from ..config.settings import (
     CLIENT_ID,
     REDIRECT_URI,
@@ -33,6 +34,25 @@ def create_github_auth_handler(
     }
     
     return GithubAuthHandler(
+        http_client=http_client,
+        db_client=db_client,
+        config=config
+    )
+
+
+def create_user_handler(
+    http_client: httpx.Client,
+    app_secrets: AppSecrets,
+    db_client: DatabaseServiceInterface,
+) -> 'UserHandler':
+    """Factory function to create UserHandler with all dependencies."""    
+    
+    config: Dict[str, Any] = {
+        'jwt_key': app_secrets.jwt_private_key,
+        'USERS_COLLECTION': USERS_COLLECTION,
+    }
+    
+    return UserHandler(
         http_client=http_client,
         db_client=db_client,
         config=config
