@@ -23,4 +23,6 @@ class UserHandler:
             collection=self.config['USERS_COLLECTION'],
             filter={"login": user_id},
         )[0]
+        if '_id' in user_details:
+            user_details['id'] = str(user_details.pop('_id'))
         return user_details
