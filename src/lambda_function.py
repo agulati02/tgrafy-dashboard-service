@@ -84,7 +84,7 @@ def get_user_profile(event: Dict[str, Any], context: LambdaContext) -> Dict[str,
         return {
             "statusCode": 200,
             "headers": {
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
                 'Access-Control-Allow-Credentials': True,
                 'Content-Type': 'application/json'
             },
