@@ -141,7 +141,7 @@ class GithubAuthHandler:
                 "headers": {
                     "Location": f"https://tgrafy.agulati.cc/dashboard?login={user_data['login']}",
                     "Set-Cookie": (
-                        f"tg_access_token={jwt_token}; "
+                        f"TgAccessToken={jwt_token}; "
                         f"Domain=.agulati.cc; HttpOnly; "
                         f"SameSite=None; Secure; Path=/; Max-Age={token_expiry_minutes * 60}"
                     )
