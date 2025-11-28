@@ -182,10 +182,12 @@ class AccessHandler:
                     if not token:
                         return {
                             "statusCode": 401,
-                            "body": json.dumps({
-                                "access_status": "UNAUTHORIZED",
-                                "error": "Missing or invalid Authorization header"
-                            })
+                            "headers": {
+                                'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                                'Access-Control-Allow-Credentials': True,
+                                'Content-Type': 'application/json'
+                            },
+                            "body": '{"access_status": "UNAUTHORIZED", "error": "Missing or invalid Authorization header"}'
                         }
                     
                     # Verify JWT token
