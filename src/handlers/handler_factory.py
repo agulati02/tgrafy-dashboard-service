@@ -6,7 +6,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from commons.utils.dependencies import get_database_service  # type: ignore
 from commons.interfaces import DatabaseServiceInterface  # type: ignore
-from .auth_handler import GithubAuthHandler
+from .auth_handler import GithubAuthHandler, AccessHandler
 from .user_handler import UserHandler
 from ..config.settings import (
     CLIENT_ID,
@@ -58,6 +58,18 @@ def create_user_handler(
         config=config
     )
 
+def create_access_handler(
+    app_secrets: AppSecrets,
+) -> 'AccessHandler':
+    """Factory function to create AccessHandler with all dependencies."""    
+    
+    config: Dict[str, Any] = {
+        'jwt_key': app_secrets.jwt_private_key,
+    }
+    
+    return AccessHandler(
+        config=config
+    )
 
 def get_handler_context(app_secrets: AppSecrets, context: LambdaContext) -> Dict[str, Any]:
     """Prepare handler context with common dependencies."""

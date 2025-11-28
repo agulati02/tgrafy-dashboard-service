@@ -3,11 +3,14 @@ import json
 import time
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Callable, Dict, Any
 from httpx import HTTPStatusError
+from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from commons.utils.token_manager import TokenManager  # type: ignore
 from commons.interfaces import SecretsManagerInterface, DatabaseServiceInterface  # type: ignore
+
+from ..utils.typing import *
 
 
 logger = logging.getLogger(__name__)
@@ -132,7 +135,8 @@ class GithubAuthHandler:
                 private_key=self.config['jwt_key'],
                 iss="tgrafy",
                 algo="HS256",
-                exp=token_expiry_minutes
+                exp=token_expiry_minutes,
+                sub=user_data["login"]
             )
             
             # 5. Return redirect response with JWT cookie
@@ -142,7 +146,7 @@ class GithubAuthHandler:
                     "Location": f"https://tgrafy.agulati.cc/dashboard?login={user_data['login']}",
                     "Set-Cookie": (
                         f"TgAccessToken={jwt_token}; "
-                        f"Domain=.agulati.cc; HttpOnly; "
+                        f"Domain=.agulati.cc; "
                         f"SameSite=None; Secure; Path=/; Max-Age={token_expiry_minutes * 60}"
                     )
                 }
@@ -156,3 +160,61 @@ class GithubAuthHandler:
                     "error": "Internal server error"
                 })
             }
+
+
+class AccessHandler:
+    """Handled access verification"""
+
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+    
+    def authorise(self):
+        """Decorator to verify JWT token from request"""
+        def decorator(func: Callable[..., Dict[str, Any]]) -> Callable[..., Dict[str, Any]]:
+            def wrapper(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
+                """Verify the provided JWT"""
+                try:
+                    # Extract token from Authorization header
+                    auth_header = event.get('headers', {}).get('Authorization', '')
+                    token = auth_header.replace('Bearer ', '').strip()
+                    
+                    # Validate token exists
+                    if not token:
+                        return {
+                            "statusCode": 401,
+                            "body": json.dumps({
+                                "access_status": "UNAUTHORIZED",
+                                "error": "Missing or invalid Authorization header"
+                            })
+                        }
+                    
+                    # Verify JWT token
+                    is_auth = TokenManager(None).verify_jwt(  # type: ignore
+                        token=token,
+                        private_key=self.config['jwt_key'],
+                        algorithms=["HS256"],
+                        iss="tgrafy",
+                    )
+                    
+                    if not is_auth:
+                        return {
+                            "statusCode": 401,
+                            "body": json.dumps({
+                                "access_status": "UNAUTHORIZED",
+                                "error": "Invalid token"
+                            })
+                        }
+                    
+                    # Token is valid, call the wrapped function
+                    return func(event, context)
+                except Exception as err:
+                    logger.error("Authorization error: %s", str(err))
+                    return {
+                        "statusCode": 401,
+                        "body": json.dumps({
+                            "access_status": "UNAUTHORIZED",
+                            "error": "Authorization verification failed"
+                        })
+                    }
+            return wrapper
+        return decorator

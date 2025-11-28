@@ -11,6 +11,7 @@ from .config.settings import AWS_REGION_NAME
 from .handlers.handler_factory import (
     create_github_auth_handler,
     create_user_handler,
+    create_access_handler,
     get_handler_context
 )
 
@@ -22,6 +23,7 @@ logger.setLevel(logging.INFO)
 app_secrets = load_secrets(
     secrets_manager=get_secrets_manager(AWS_REGION_NAME)
 )
+access_manager = create_access_handler(app_secrets)
 
 @router.route("GET", f"{AUTH_ROUTER_PREFIX}/oauth/github")
 def github_oauth(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
@@ -69,6 +71,7 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
 
 
 @router.route("GET", f"{USER_ROUTER_PREFIX}/profile")
+@access_manager.authorise()
 def get_user_profile(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     """Fetch the authenticated user's profile information"""
     try:
