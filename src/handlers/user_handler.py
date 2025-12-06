@@ -22,7 +22,9 @@ class UserHandler:
         user_details: Dict[str, Any] = self.db_client.query(
             collection=self.config['USERS_COLLECTION'],
             filter={"login": user_id},
-            select={"login_ts": 0}
+            select={
+                "login_ts": 0,
+            }
         )[0]
         if '_id' in user_details:
             user_details['id'] = str(user_details.pop('_id'))

@@ -40,6 +40,11 @@ def github_oauth(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any
         logger.error("Error in github_oauth: %s", str(err))
         return {
             "statusCode": 500,
+            "headers": {
+                'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                'Access-Control-Allow-Credentials': True,
+                'Content-Type': 'application/json'
+            },
             "body": '{"error": "Internal server error"}'
         }
 
@@ -52,6 +57,11 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
         if not code:
             return {
                 "statusCode": 400,
+                "headers": {
+                    'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                    'Access-Control-Allow-Credentials': True,
+                    'Content-Type': 'application/json'
+                },
                 "body": '{"error": "Missing authorization code"}'
             }
         
@@ -66,6 +76,35 @@ def github_oauth_callback(event: Dict[str, Any], context: LambdaContext) -> Dict
         logger.error("Error in github_oauth_callback: %s", str(err))
         return {
             "statusCode": 500,
+            "headers": {
+                'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                'Access-Control-Allow-Credentials': True,
+                'Content-Type': 'application/json'
+            },
+            "body": '{"error": "Internal server error"}'
+        }
+
+
+@router.route("GET", f"{AUTH_ROUTER_PREFIX}/refresh")
+def refresh_token(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
+    """Refresh JWT token for authenticated user"""
+    try:
+        handler_context = get_handler_context(app_secrets, context)
+        handler = create_github_auth_handler(
+            http_client=handler_context['http_client'],
+            app_secrets=app_secrets,
+            db_client=handler_context['db_client'],
+        )
+        return handler.refresh_jwt(event)
+    except Exception as err:
+        logger.error("Error in refresh_token: %s", str(err))
+        return {
+            "statusCode": 500,
+            "headers": {
+                'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                'Access-Control-Allow-Credentials': True,
+                'Content-Type': 'application/json'
+            },
             "body": '{"error": "Internal server error"}'
         }
 
@@ -97,8 +136,14 @@ def get_user_profile(event: Dict[str, Any], context: LambdaContext) -> Dict[str,
         logger.error("Error in get_user_profile: %s", str(err))
         return {
             "statusCode": 500,
+            "headers": {
+                'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                'Access-Control-Allow-Credentials': True,
+                'Content-Type': 'application/json'
+            },
             "body": '{"error": "Internal server error"}'
         }
+
 
 def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     return router.handle(event, context)

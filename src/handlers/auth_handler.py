@@ -1,5 +1,4 @@
 import httpx
-import json
 import time
 import logging
 from datetime import datetime, timezone
@@ -8,7 +7,8 @@ from httpx import HTTPStatusError
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from commons.utils.token_manager import TokenManager  # type: ignore
-from commons.interfaces import SecretsManagerInterface, DatabaseServiceInterface  # type: ignore
+from commons.interfaces import DatabaseServiceInterface # type: ignore
+import jwt  # type: ignore
 
 from ..utils.typing import *
 
@@ -46,16 +46,7 @@ class GithubAuthHandler:
         }
     
     def handle_callback(self, code: str) -> Dict[str, Any]:
-        """
-        Handle GitHub OAuth callback.
-        
-        Steps:
-        1. Exchange authorization code for access token
-        2. Fetch user information from GitHub
-        3. Save user information in database
-        4. Generate JWT token
-        5. Return redirect response with JWT cookie
-        """
+        """Handle GitHub OAuth callback"""
         try:
             # 1. Exchange authorization code for access token
             logger.info("Fetching access token")
@@ -78,10 +69,12 @@ class GithubAuthHandler:
                 logger.error("Error fetching access token: %s", str(err))
                 return {
                     "statusCode": 400,
-                    "body": json.dumps({
-                        "login_status": "FAILED",
-                        "error": str(err)
-                    })
+                    "headers": {
+                        'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                        'Access-Control-Allow-Credentials': True,
+                        'Content-Type': 'application/json'
+                    },
+                    "body": '{"login_status": "FAILED", "error": ' + str(err) + '}'
                 }
             
             token_data: Dict[str, Any] = token_response.json()
@@ -105,10 +98,7 @@ class GithubAuthHandler:
                 logger.error("Error fetching user data: %s", str(err))
                 return {
                     "statusCode": 500,
-                    "body": json.dumps({
-                        "login_status": "FAILED",
-                        "error": str(err)
-                    })
+                    "body": '{"login_status": "FAILED", "error": ' + str(err) + '}'
                 }
             
             user_data: Dict[str, Any] = user_response.json()
@@ -138,27 +128,139 @@ class GithubAuthHandler:
                 exp=token_expiry_minutes,
                 sub=user_data["login"]
             )
+
+            # 5. Generate refresh token
+            refresh_token_expiry_minutes = 60 * 24 * 7  # 7 days
+            refresh_jwt_token = TokenManager(None).get_jwt_token(   # type: ignore
+                private_key=self.config['jwt_key'],
+                iss="tgrafy",
+                algo="HS256",
+                exp=refresh_token_expiry_minutes,
+                sub=user_data["login"],
+                type="refresh"
+            )
             
-            # 5. Return redirect response with JWT cookie
+            # 6. Return redirect response with JWT cookie
             return {
                 "statusCode": 302,
                 "headers": {
+                    'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                    'Access-Control-Allow-Credentials': True,
+                    'Content-Type': 'application/json',
+
                     "Location": f"https://tgrafy.agulati.cc/dashboard?login={user_data['login']}",
-                    "Set-Cookie": (
-                        f"TgAccessToken={jwt_token}; "
-                        f"Domain=.agulati.cc; "
-                        f"SameSite=None; Secure; Path=/; Max-Age={token_expiry_minutes * 60}"
-                    )
+                    "multiValueHeaders": {
+                        "Set-Cookie": [
+                            (
+                                f"TgAccessToken={jwt_token}; "
+                                f"Domain=.agulati.cc; "
+                                f"SameSite=None; Secure; Path=/; Max-Age={token_expiry_minutes * 60}"
+                            ),
+                            {
+                                f"TgRefreshToken={refresh_jwt_token}; "
+                                f"Domain=.agulati.cc; httpOnly; "
+                                f"SameSite=None; Secure; Path=/; Max-Age={refresh_token_expiry_minutes * 60}"
+                            }
+                        ]
+                    }
                 }
             }
         except Exception as err:
             logger.error("Unexpected error in OAuth callback: %s", str(err))
             return {
                 "statusCode": 500,
-                "body": json.dumps({
-                    "login_status": "FAILED",
-                    "error": "Internal server error"
-                })
+                "headers": {
+                    'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                    'Access-Control-Allow-Credentials': True,
+                    'Content-Type': 'application/json'
+                },
+                "body": '{"login_status": "FAILED", "error": "Internal server error"}'
+            }
+    
+    def refresh_jwt(self, event: Dict[str, Any]) -> Dict[str, Any]:
+        """Refresh JWT token using the provided refresh token"""
+        try:
+            # Extract refresh token from cookies
+            cookies: str = event.get('headers', {}).get('Cookie', '')
+            refresh_token = ''
+            for cookie in cookies.split(';'):
+                if cookie.strip().startswith('TgRefreshToken='):
+                    refresh_token = cookie.strip().replace('TgRefreshToken=', '')
+                    break
+            
+            if not refresh_token or refresh_token == '':
+                return {
+                    "statusCode": 401,
+                    "headers": {
+                        'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                        'Access-Control-Allow-Credentials': True,
+                        'Content-Type': 'application/json'
+                    },
+                    "body": '{"access_status": "FAILED", "error": "Missing refresh token"}'
+                }
+            
+            # Verify refresh token
+            is_valid = TokenManager(None).verify_jwt(  # type: ignore
+                token=refresh_token,
+                private_key=self.config['jwt_key'],
+                algorithms=["HS256"],
+                iss="tgrafy"
+            )
+            
+            if not is_valid:
+                return {
+                    "statusCode": 401,
+                    "headers": {
+                        'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                        'Access-Control-Allow-Credentials': True,
+                        'Content-Type': 'application/json'
+                    },
+                    "body": '{"access_status": "FAILED", "error": "Invalid refresh token"}'
+                }
+            
+            # Extract user login from token
+            payload: Dict[str, Any] = jwt.decode(
+                refresh_token,
+                self.config['jwt_key'],
+                algorithms=["HS256"],
+                options={"verify_exp": True}
+            )
+            user_login = payload.get("sub")
+            
+            # Generate new JWT token
+            token_expiry_minutes = 10
+            new_jwt_token = TokenManager(None).get_jwt_token(  # type: ignore
+                private_key=self.config['jwt_key'],
+                iss="tgrafy",
+                algo="HS256",
+                exp=token_expiry_minutes,
+                sub=user_login
+            )
+            
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Set-Cookie": (
+                        f"TgAccessToken={new_jwt_token}; "
+                        f"Domain=.agulati.cc; "
+                        f"SameSite=None; Secure; Path=/; Max-Age={token_expiry_minutes * 60}"
+                    ),
+                    'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                    'Access-Control-Allow-Credentials': True,
+                    'Content-Type': 'application/json'
+                },
+                "body": '{"access_status": "SUCCESS", "message": "JWT token refreshed successfully"}'
+            }
+        except Exception as err:
+            logger.error("Unexpected error in refresh_jwt: %s", str(err))
+            return {
+                "statusCode": 500,
+                "headers": {
+                    'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                    'Access-Control-Allow-Credentials': True,
+                    'Content-Type': 'application/json'
+                },
+                "body": '{"access_status": "FAILED", "error": "Internal server error"}'
             }
 
 
@@ -201,10 +303,12 @@ class AccessHandler:
                     if not is_auth:
                         return {
                             "statusCode": 401,
-                            "body": json.dumps({
-                                "access_status": "UNAUTHORIZED",
-                                "error": "Invalid token"
-                            })
+                            "headers": {
+                                'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                                'Access-Control-Allow-Credentials': True,
+                                'Content-Type': 'application/json'
+                            },
+                            "body": '{"access_status": "UNAUTHORIZED","error": "Invalid token"}'
                         }
                     
                     # Token is valid, call the wrapped function
@@ -213,10 +317,12 @@ class AccessHandler:
                     logger.error("Authorization error: %s", str(err))
                     return {
                         "statusCode": 401,
-                        "body": json.dumps({
-                            "access_status": "UNAUTHORIZED",
-                            "error": "Authorization verification failed"
-                        })
+                        "headers": {
+                            'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                            'Access-Control-Allow-Credentials': True,
+                            'Content-Type': 'application/json'
+                        },
+                        "body": '{"access_status": "UNAUTHORIZED", "error": "Authorization verification failed"}'
                     }
             return wrapper
         return decorator
