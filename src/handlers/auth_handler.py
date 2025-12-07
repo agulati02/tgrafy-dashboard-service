@@ -267,7 +267,7 @@ class AccessHandler:
                 """Verify the provided JWT"""
                 try:
                     # Extract token from Authorization header
-                    logger.info(event)
+                    logger.info(str(event))
                     cookies: str = event.get('headers', {}).get('Cookie', '')
                     token = None
                     logger.info(cookies)
