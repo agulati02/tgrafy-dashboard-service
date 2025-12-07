@@ -157,11 +157,11 @@ class GithubAuthHandler:
                                 f"Domain=.agulati.cc; "
                                 f"SameSite=None; Secure; Path=/; Max-Age={token_expiry_minutes * 60}"
                             ),
-                            {
+                            (
                                 f"TgRefreshToken={refresh_jwt_token}; "
                                 f"Domain=.agulati.cc; httpOnly; "
                                 f"SameSite=None; Secure; Path=/; Max-Age={refresh_token_expiry_minutes * 60}"
-                            }
+                            )
                         ]
                     }
                 }
