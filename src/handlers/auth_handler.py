@@ -142,6 +142,7 @@ class GithubAuthHandler:
             )
             
             # 6. Return redirect response with JWT cookie
+            logger.info("Generating redirect response")
             return {
                 "statusCode": 302,
                 "headers": {
