@@ -267,10 +267,8 @@ class AccessHandler:
                 """Verify the provided JWT"""
                 try:
                     # Extract token from Authorization header
-                    logger.info(str(event))
                     cookies: str = event.get('headers', {}).get('cookie', '')
                     token = None
-                    logger.info(cookies)
                     for cookie in cookies.split(';'):
                         if cookie.strip().startswith('TgAccessToken='):
                             token = cookie.strip().replace('TgAccessToken=', '')

@@ -24,6 +24,10 @@ class UserHandler:
             filter={"login": user_id},
             select={
                 "login_ts": 0,
+                "access_token": 0,
+                "id": 0,
+                "node_id": 0,
+                
             }
         )[0]
         if '_id' in user_details:
