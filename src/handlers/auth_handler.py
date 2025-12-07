@@ -273,7 +273,7 @@ class AccessHandler:
                     logger.info(cookies)
                     for cookie in cookies.split(';'):
                         if cookie.strip().startswith('TgAccessToken='):
-                            token = cookie.strip().replace('TgRefreshToken=', '')
+                            token = cookie.strip().replace('TgAccessToken=', '')
                             break
                     
                     # Validate token exists
