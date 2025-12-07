@@ -147,15 +147,12 @@ class GithubAuthHandler:
                 "statusCode": 302,
                 "headers": {
                     "Location": f"https://tgrafy.agulati.cc/dashboard?login={user_data['login']}",
-                    "headers": {
-                        "Set-Cookie": f"TgAccessToken={jwt_token}; Domain=.agulati.cc; SameSite=None; Secure; Path=/; Max-Age={token_expiry_minutes * 60}"
-                    }
-                    # "multiValueHeaders": {
-                    #     "Set-Cookie": [
-                    #         f"TgAccessToken={jwt_token}; Domain=.agulati.cc; SameSite=None; Secure; Path=/; Max-Age={token_expiry_minutes * 60}",
-                    #         f"TgRefreshToken={refresh_jwt_token}; Domain=.agulati.cc; HttpOnly; SameSite=None; Secure; Path=/; Max-Age={refresh_token_expiry_minutes * 60}"
-                    #     ]
-                    # }
+                },
+                "multiValueHeaders": {
+                    "Set-Cookie": [
+                        f"TgAccessToken={jwt_token}; Domain=.agulati.cc; SameSite=None; Secure; Path=/; Max-Age={token_expiry_minutes * 60}",
+                        f"TgRefreshToken={refresh_jwt_token}; Domain=.agulati.cc; HttpOnly; SameSite=None; Secure; Path=/; Max-Age={refresh_token_expiry_minutes * 60}"
+                    ]
                 }
             }
         except Exception as err:
