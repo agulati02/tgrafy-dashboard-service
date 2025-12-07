@@ -119,7 +119,7 @@ class GithubAuthHandler:
             logger.info("User save call took %f sec", time.time() - start)
             
             # 4. Generate JWT token
-            logger.info("Generating JWT token")
+            logger.info("Generating access token")
             token_expiry_minutes = 10
             jwt_token = TokenManager(None).get_jwt_token(   # type: ignore
                 private_key=self.config['jwt_key'],
@@ -130,6 +130,7 @@ class GithubAuthHandler:
             )
 
             # 5. Generate refresh token
+            logger.info("Generating refresh token")
             refresh_token_expiry_minutes = 60 * 24 * 7  # 7 days
             refresh_jwt_token = TokenManager(None).get_jwt_token(   # type: ignore
                 private_key=self.config['jwt_key'],
@@ -282,6 +283,7 @@ class AccessHandler:
                     
                     # Validate token exists
                     if not token:
+                        logger.error("Missing Authorization header")
                         return {
                             "statusCode": 401,
                             "headers": {
@@ -301,6 +303,7 @@ class AccessHandler:
                     )
                     
                     if not is_auth:
+                        logger.error("Invalid access token")
                         return {
                             "statusCode": 401,
                             "headers": {
