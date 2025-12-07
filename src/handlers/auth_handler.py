@@ -150,7 +150,7 @@ class GithubAuthHandler:
                 },
                 "multiValueHeaders": {
                     "Set-Cookie": [
-                        f"TgAccessToken={jwt_token}; Domain=.agulati.cc; SameSite=None; Secure; Path=/; Max-Age={token_expiry_minutes * 60}",
+                        f"TgAccessToken={jwt_token}; Domain=.agulati.cc; SameSite=None; HttpOnly; Secure; Path=/; Max-Age={token_expiry_minutes * 60}",
                         f"TgRefreshToken={refresh_jwt_token}; Domain=.agulati.cc; HttpOnly; SameSite=None; Secure; Path=/; Max-Age={refresh_token_expiry_minutes * 60}"
                     ]
                 }
@@ -267,12 +267,17 @@ class AccessHandler:
                 """Verify the provided JWT"""
                 try:
                     # Extract token from Authorization header
-                    auth_header = event.get('headers', {}).get('Authorization', '')
-                    token = auth_header.replace('Bearer ', '').strip()
+                    cookies: str = event.get('headers', {}).get('Cookie', '')
+                    token = None
+                    logger.info(cookies)
+                    for cookie in cookies.split(';'):
+                        if cookie.strip().startswith('TgAccessToken='):
+                            token = cookie.strip().replace('TgRefreshToken=', '')
+                            break
                     
                     # Validate token exists
                     if not token:
-                        logger.error("Missing Authorization header")
+                        logger.error("Missing access token")
                         return {
                             "statusCode": 401,
                             "headers": {
