@@ -145,10 +145,6 @@ class GithubAuthHandler:
             return {
                 "statusCode": 302,
                 "headers": {
-                    'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
-                    'Access-Control-Allow-Credentials': True,
-                    'Content-Type': 'application/json',
-
                     "Location": f"https://tgrafy.agulati.cc/dashboard?login={user_data['login']}",
                     "multiValueHeaders": {
                         "Set-Cookie": [
