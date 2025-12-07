@@ -145,5 +145,42 @@ def get_user_profile(event: Dict[str, Any], context: LambdaContext) -> Dict[str,
         }
 
 
+@router.route("GET", f"{USER_ROUTER_PREFIX}/installations")
+@access_manager.authorise()
+def get_user_installations(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
+    """Fetch the authenticated user's GitHub installations"""
+    try:
+        handler_context = get_handler_context(app_secrets, context)
+        handler = create_user_handler(
+            http_client=handler_context['http_client'],
+            app_secrets=app_secrets,
+            db_client=handler_context['db_client'],
+        )
+
+        user_id = event.get("queryStringParameters", {}).get("user_id", "")
+        installations = handler.get_tgrafy_installations(user_id=user_id)
+
+        return {
+            "statusCode": 200,
+            "headers": {
+                'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                'Access-Control-Allow-Credentials': True,
+                'Content-Type': 'application/json'
+            },
+            "body": json.dumps({"installations": installations})
+        }
+    except Exception as err:
+        logger.error("Error in get_user_installations: %s", str(err))
+        return {
+            "statusCode": 500,
+            "headers": {
+                'Access-Control-Allow-Origin': 'https://tgrafy.agulati.cc',
+                'Access-Control-Allow-Credentials': True,
+                'Content-Type': 'application/json'
+            },
+            "body": '{"error": "Internal server error"}'
+        }
+
+
 def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     return router.handle(event, context)
