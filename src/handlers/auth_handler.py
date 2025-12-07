@@ -36,7 +36,7 @@ class GithubAuthHandler:
             f"https://github.com/login/oauth/authorize"
             f"?client_id={self.config['CLIENT_ID']}"
             f"&redirect_uri={self.config['REDIRECT_URI']}"
-            f"&scope=user:email"
+            f"&scope=read:user"
         )
         return {
             "statusCode": 302,
